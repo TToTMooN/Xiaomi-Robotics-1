@@ -183,7 +183,13 @@ def compose_action(
     return action
 
 
-def compose_state(left_gripper, left_joint, right_gripper, right_joint) -> np.ndarray:
+def compose_state(left_gripper, left_joint, right_gripper, right_joint, state_extra=None) -> np.ndarray:
+    # [vla-hub additive patch] state_extra: optional features written into the
+    # reserved dims [16, 60) — the model's state projector already consumes
+    # all STATE_DIM dims, and quantile normalization treats untouched dims as
+    # padding, so this is backward-compatible with every existing checkpoint.
+    # Used for frame-invariant proprioception on jointless (UMI-style) rigs:
+    # inter-gripper relative pose + k-step relative pose history.
     state = np.zeros((1, STATE_DIM), dtype=np.float32)
     left_joint = np.asarray(left_joint, dtype=np.float32).reshape(1, -1)
     right_joint = np.asarray(right_joint, dtype=np.float32).reshape(1, -1)
@@ -193,6 +199,11 @@ def compose_state(left_gripper, left_joint, right_gripper, right_joint) -> np.nd
     state[:, 7:8] = np.asarray(left_gripper, dtype=np.float32).reshape(1, 1)
     state[:, 8 : 8 + right_joint.shape[1]] = right_joint
     state[:, 15:16] = np.asarray(right_gripper, dtype=np.float32).reshape(1, 1)
+    if state_extra is not None:
+        extra = np.asarray(state_extra, dtype=np.float32).reshape(1, -1)
+        if extra.shape[1] > STATE_DIM - 16:
+            raise ValueError(f"state_extra cannot exceed {STATE_DIM - 16} dimensions")
+        state[:, 16 : 16 + extra.shape[1]] = extra
     return state
 
 

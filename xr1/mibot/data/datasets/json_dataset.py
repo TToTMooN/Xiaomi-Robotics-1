@@ -253,7 +253,11 @@ class JsonDataset(Dataset):
 
     @staticmethod
     def _state(traj, frame):
+        # [vla-hub additive patch] proprios.state_extra is optional per-frame
+        # extra state (see compose_state); absent in stock datasets.
+        extra = traj.get("proprios", {}).get("state_extra")
         return compose_state(
+            state_extra=(extra[frame] if extra is not None else None),
             left_gripper=np.asarray(get_value(traj, "proprios.left_gripper_pos")[frame], dtype=np.float32),
             left_joint=np.asarray(get_value(traj, "proprios.left_arm_joint")[frame], dtype=np.float32),
             right_gripper=np.asarray(get_value(traj, "proprios.right_gripper_pos")[frame], dtype=np.float32),
